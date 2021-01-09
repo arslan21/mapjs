@@ -11,3 +11,44 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+h1 {
+    position: absolute;
+    z-index: 10;
+    left: 1rem;
+    top: 1rem;
+    margin:0;
+    padding:0;
+}
+
+.locate {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: #D5D8DC;
+    border: 1px solid black;
+    border-radius: 8px;
+    z-index: 10;
+}
+
+.locate img {
+    width:30px;
+    cursor:pointer;
+}
+
+.search {
+    position: absolute;
+    left: 1rem;
+    top: 5rem;
+    width: 100%;
+    max-width: 250px;
+    z-index: 10;
+}
+
+    .search input {
+        padding: 0.5rem;
+        font-size: 1.5rem;
+        background-color: #D5D8DC;
+        width: 100%;
+    }
+
