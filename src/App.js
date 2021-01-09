@@ -3,6 +3,7 @@ import {
     GoogleMap,
     useLoadMap,
     Marker,
+    Polyline,
     InfoWindow,
     useLoadScript,
     Data
@@ -42,6 +43,20 @@ const options = {
 
 };
 
+const optionsLine = {
+    strokeColor: '#FF0000',
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    fillColor: '#FF0000',
+    fillOpacity: 0.35,
+    clickable: false,
+    draggable: false,
+    editable: false,
+    visible: true,
+    radius: 30000,
+    zIndex: 1
+};
+
 export default function App() {
     const { isLoaded, loadError } = useLoadScript({
         googleMapsApiKey: "AIzaSyCB3oTCWDPZyhRnOeOkG_TfsC2dIVd7HD0",
@@ -50,11 +65,79 @@ export default function App() {
 
     const [markers, setMarkers] = React.useState([]);
     const [selected, setSelected] = React.useState(null);
+    const [pathCoordinates, setPathsCoordinates]=React.useState([]);
 
     const onMapClock = React.useCallback((event) => {
         setMarkers(current => [...current, {
+            id: current.length + 1,
             lat: event.latLng.lat(),
             lng: event.latLng.lng(),
+            time: new Date(),
+        }])
+
+        setPathsCoordinates(current => [...current, {
+            id: current.length + 1,
+            lat: event.latLng.lat(),
+            lng: event.latLng.lng(),
+        }])
+    }, []);
+
+    const changePosition = React.useCallback((markers, paths, marker, event) => {
+        const id = marker.id;
+        const newLat = event.latLng.lat();
+        const newLng = event.latLng.lng();
+
+        const itemIndexM = markers.findIndex(
+            item => item.id === Number(id)
+        );
+
+        if (itemIndexM !== -1) {
+            // Make a copy of the state
+            const childrenM = [...markers];
+            // The child item
+            const childM = childrenM[itemIndexM];
+            // Update the child's age
+            childrenM.splice(itemIndexM, 1, {
+                ...childM,
+                lat:newLat,
+                lng: newLng,
+                time: new Date(),
+            });
+            // Update the state
+            setMarkers(childrenM);
+        }
+
+
+
+        const itemIndexP = paths.findIndex(
+            item => item.id === Number(id)
+        );
+
+        if (itemIndexP !== -1) {
+            // Make a copy of the state
+            const childrenP = [...paths];
+            // The child item
+            const childP = childrenP[itemIndexP];
+            // Update the child's age
+            childrenP.splice(itemIndexP, 1, {
+                ...childP,
+                lat: newLat,
+                lng: newLng,
+            });
+            // Update the state
+            setPathsCoordinates(childrenP);
+        }
+    }, []);
+
+    const changeLine = React.useCallback((markers, marker, evt) => {
+
+    }, []);;
+
+    const putMarker = React.useCallback(({ lat, lng }) => {
+        setMarkers(current => [...current, {
+            id: current.length + 1,
+            lat: lat,
+            lng: lng,
             time: new Date(),
         }])
     }, []);
@@ -81,7 +164,10 @@ export default function App() {
                 </span>
             </h1>
 
-            <Search panTo={panTo} />
+            <Search panTo={panTo} putMarker={putMarker} />
+
+
+
             <Locate panTo={panTo} />
 
             <GoogleMap
@@ -92,9 +178,17 @@ export default function App() {
                 onClick={onMapClock}
                 onLoad={onMapLoad}
             >
+
                 {markers.map((marker) => (
                     <Marker
                         key={marker.time.toISOString()}
+                        draggable={true}
+                        onDragEnd={(evt) => {
+                            changePosition(markers, pathCoordinates, marker,  evt);
+                        }}
+                        onDrag={(evt) => {
+                            changeLine(markers, marker, evt)
+                        }}
                         position={{
                             lat: marker.lat,
                             lng: marker.lng
@@ -108,9 +202,16 @@ export default function App() {
                         }}
                         onClick={() => {
                             setSelected(marker);
-                        }}
+                        }} 
                     />
+
                 ))}
+
+                <Polyline
+                    path={pathCoordinates}
+                    geodesic={true}
+                    options={{ optionsLine}}
+                />
 
                 {selected ? (
                     <InfoWindow
@@ -154,7 +255,7 @@ function Locate({ panTo }) {
     );
 }
 
-function Search({ panTo }) {
+function Search(props) {
     const {
         ready,
         value,
@@ -181,12 +282,13 @@ function Search({ panTo }) {
                     try {
                         const results = await getGeocode({ address });
                         const { lat, lng } = await getLatLng(results[0]);
-                        panTo({ lat, lng });
+
+                        props.panTo({ lat, lng });
+                        props.putMarker({ lat, lng });
 
                     } catch (error) {
                         console.log(error)
                     }
-                    //console.log(address);
                 }}
             >
                 <ComboboxInput
@@ -212,3 +314,14 @@ function Search({ panTo }) {
         </div>
     )
 }
+
+//function NumberList(props) {
+//    const markers = props.markers;
+
+//    const listItems = numbers.map((number) =>
+//        <li>{number}</li>
+//    );
+//    return (
+//        <ul>{listItems}</ul>
+//    );
+//}
