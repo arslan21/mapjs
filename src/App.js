@@ -15,6 +15,9 @@ import usePlacesAutoComplete, {
     getLatLng,
 } from "use-places-autocomplete";
 
+import { DndProvider } from 'react-dnd'
+import { HTML5Backend } from 'react-dnd-html5-backend'
+
 import {
     Combobox,
     ComboboxInput,
@@ -30,6 +33,7 @@ import mapStyles from "./mapStyles";
 const libraries = ["places"];
 const mapContainerStyle = {
     width: "100vw",
+    maxWidth: "100 %",
     height: "100vh",
 };
 const center = {
@@ -65,7 +69,9 @@ export default function App() {
 
     const [markers, setMarkers] = React.useState([]);
     const [selected, setSelected] = React.useState(null);
-    const [pathCoordinates, setPathsCoordinates]=React.useState([]);
+    const [pathCoordinates, setPathsCoordinates] = React.useState([]);
+    const [listPos, setListPos] = React.useState([]);
+    const [cardList, setCardList] = React.useState([]);
 
     const onMapClock = React.useCallback((event) => {
         setMarkers(current => [...current, {
@@ -80,9 +86,17 @@ export default function App() {
             lat: event.latLng.lat(),
             lng: event.latLng.lng(),
         }])
+
+        setCardList(current => [...current, {
+            id: current.length + 1,
+            lat: event.latLng.lat(),
+            lng: event.latLng.lng(),
+        }])
+
     }, []);
 
-    const changePosition = React.useCallback((markers, paths, marker, event) => {
+
+    const changePosition = React.useCallback((markers, paths, cardList, marker, event) => {
         const id = marker.id;
         const newLat = event.latLng.lat();
         const newLng = event.latLng.lng();
@@ -108,7 +122,6 @@ export default function App() {
         }
 
 
-
         const itemIndexP = paths.findIndex(
             item => item.id === Number(id)
         );
@@ -127,11 +140,29 @@ export default function App() {
             // Update the state
             setPathsCoordinates(childrenP);
         }
+
+
+        const itemIndexC = cardList.findIndex(
+            item => item.id === Number(id)
+        );
+
+        if (itemIndexC !== -1) {
+            // Make a copy of the state
+            const childrenC = [...cardList];
+            // The child item
+            const childC = childrenC[itemIndexC];
+            // Update the child's age
+            childrenC.splice(itemIndexC, 1, {
+                ...childC,
+                lat: newLat,
+                lng: newLng,
+            });
+            // Update the state
+            setCardList(childrenC);
+        }
+
     }, []);
 
-    const changeLine = React.useCallback((markers, marker, evt) => {
-
-    }, []);;
 
     const putMarker = React.useCallback(({ lat, lng }) => {
         setMarkers(current => [...current, {
@@ -152,23 +183,53 @@ export default function App() {
         mapRef.current.setZoom(14);
     }, []);
 
+    //const removeMarker = React.useCallback((markers, cardList, card) => {
+    //    const id = card.id;
+
+    //    const itemIndexM = markers.findIndex(
+    //        item => item.id === Number(id)
+    //    );
+
+    //    if (itemIndexM !== -1) {
+    //        // Make a copy of the state
+    //        const childrenM = [...markers];
+    //        // The child item
+    //        const childM = childrenM[itemIndexM];
+    //        // Update the child's age
+            
+    //        //childrenM.splice(itemIndexM, 1, {
+    //        //    ...childM,
+    //        //    lat: newLat,
+    //        //    lng: newLng,
+    //        //    time: new Date(),
+    //        //});
+    //        // Update the state
+    //        setMarkers(childrenM);
+    //    }
+    //});
+
     if (loadError) return "Error loading maps";
     if (!isLoaded) return "Loading maps";
 
     return (
-        <div>
-            <h1>
-                it`s my path{" "}
-                <span role="img" aria-label="tent">
-                    🚍
-                </span>
-            </h1>
+        <div className="app">
+            <div className="panel">
+                <h1>
+                    it`s my path{" "}
+                    <span role="img" aria-label="tent">
+                        🚍
+                    </span>
+                </h1>
 
-            <Search panTo={panTo} putMarker={putMarker} />
+                <Search panTo={panTo} putMarker={putMarker} />
 
+                {cardList.length > 0 ? (
+                    <div>
+                        {CardList(cardList)}
+                    </div>
+                ) : null}
+            </div>
 
-
-            <Locate panTo={panTo} />
 
             <GoogleMap
                 mapContainerStyle={mapContainerStyle}
@@ -184,10 +245,10 @@ export default function App() {
                         key={marker.time.toISOString()}
                         draggable={true}
                         onDragEnd={(evt) => {
-                            changePosition(markers, pathCoordinates, marker,  evt);
+                            changePosition(markers, pathCoordinates, marker, evt);
                         }}
                         onDrag={(evt) => {
-                            changeLine(markers, marker, evt)
+                            //changeLine(markers, marker, evt)
                         }}
                         position={{
                             lat: marker.lat,
@@ -204,7 +265,6 @@ export default function App() {
                             setSelected(marker);
                         }} 
                     />
-
                 ))}
 
                 <Polyline
@@ -224,11 +284,15 @@ export default function App() {
                         }}
                     >
                         <div>
-                            <p>{formatRelative(selected.time, new Date())}</p>
+                            <p>{"".concat("Lat:", selected.lat, " ", "Lng:", selected.lng ) }</p>
                         </div>
                     </InfoWindow>
-                ): null}
+                ) : null}
+
+
             </GoogleMap>
+
+            <Locate panTo={panTo} />
         </div>
     );
 }
@@ -273,7 +337,7 @@ function Search(props) {
     });
 
     return (
-        <div className="search">
+        <div className="search" zIndex={100}>
             <Combobox
                 onSelect={async (address) => {
                     setValue(address, false);
@@ -302,6 +366,7 @@ function Search(props) {
 
                 <ComboboxPopover>
                     <ComboboxList>
+                        
                         {status === "OK" && data.map(({ id, description }) => (
                             <ComboboxOption
                                 key={id}
@@ -313,6 +378,27 @@ function Search(props) {
             </Combobox>
         </div>
     )
+}
+
+function CardList(cardList, markers) {
+    return (
+        <div className="cardList">      
+            {cardList.map(card =>
+                <div className = "card">
+                    <p>{"".concat("Lat:", card.lat, " ", "Lng:", card.lng)}</p>
+
+                    <button
+                        className="removeMaker"
+                        onClick={() => {
+                            //removeMarker(markers, cardList, card)
+                        }}
+                    >
+                        <img src="minus.svg" alt="compass" />
+                    </button>
+                </div>  
+            )}
+        </div> 
+    );
 }
 
 //function NumberList(props) {
